@@ -43,17 +43,9 @@ class FlickrFetchr {
         return getUrlBytes(urlSpec)?.let { String(it) }
     }
 
-    fun fetchItems(): List<GalleryItem>{
+    fun downloadGalleryItems(url: String): List<GalleryItem>{
         val items: MutableList<GalleryItem> = ArrayList()
         try{
-            val url = Uri.parse("https://api.flickr.com/services/rest/")
-                .buildUpon()
-                .appendQueryParameter("method", "flickr.photos.getRecent")
-                .appendQueryParameter("api_key", API_KEY)
-                .appendQueryParameter("format", "json")
-                .appendQueryParameter("nojsoncallback", "1")
-                .appendQueryParameter("extras", "url_s")
-                .build().toString()
             val jsonString = getUrlString(url)
             Log.i(TAG, "Received JSON: $jsonString")
             val jsonBody = JSONObject(jsonString)
@@ -86,9 +78,39 @@ class FlickrFetchr {
         }
     }
 
+    private fun buildUrl(method: String, query: String?): String? {
+        val uriBuilder = ENDPOINT.buildUpon()
+            .appendQueryParameter("method", method)
+        if (method == SEARCH_METHOD) {
+            uriBuilder.appendQueryParameter("text", query)
+        }
+        return uriBuilder.build().toString()
+    }
+
+    fun fetchRecentPhotos(): List<GalleryItem> {
+        val url = buildUrl(FETCH_RECENTS_METHOD, null)
+        return downloadGalleryItems(url!!)
+    }
+
+    fun searchPhotos(query: String?): List<GalleryItem> {
+        val url = buildUrl(SEARCH_METHOD, query!!)
+        return downloadGalleryItems(url!!)
+    }
+
+
     companion object{
         private val TAG: String = "FlickrFetchr"
         private val API_KEY: String = "2868e249105627f7f8e3525e1565cc0e"
+        private const val FETCH_RECENTS_METHOD = "flickr.photos.getRecent"
+        private const val SEARCH_METHOD = "flickr.photos.search"
+        private val ENDPOINT = Uri
+            .parse("https://api.flickr.com/services/rest/")
+            .buildUpon()
+            .appendQueryParameter("api_key", API_KEY)
+            .appendQueryParameter("format", "json")
+            .appendQueryParameter("nojsoncallback", "1")
+            .appendQueryParameter("extras", "url_s")
+            .build()
     }
 }
 
