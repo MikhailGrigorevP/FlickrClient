@@ -16,6 +16,8 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
+import com.mikhailgrigorev.photogallery.QueryPreferences.getStoredQuery
+import com.mikhailgrigorev.photogallery.QueryPreferences.setStoredQuery
 import com.mikhailgrigorev.photogallery.ThumbnailDownloader.ThumbnailDownloadListener
 
 
@@ -27,7 +29,8 @@ class PhotoGalleryFragment: Fragment() {
         super.onCreate(savedInstanceState)
         retainInstance = true
         setHasOptionsMenu(true)
-        FetchItemsTask().execute()
+        updateItems()
+
         val responseHandler = Handler()
         mThumbnailDownloader = ThumbnailDownloader(responseHandler)
         mThumbnailDownloader!!.setThumbnailDownloadListener(
@@ -51,15 +54,17 @@ class PhotoGalleryFragment: Fragment() {
         mThumbnailDownloader!!.clearQueue()
     }
 
+
     override fun onCreateOptionsMenu(menu: Menu, menuInflater: MenuInflater) {
         super.onCreateOptionsMenu(menu, menuInflater)
         menuInflater.inflate(R.menu.fragment_photo_gallery, menu)
-        val searchItem: MenuItem = menu.findItem(R.id.menu_item_search)
-        val searchView: SearchView = searchItem.actionView as SearchView
+        val searchItem = menu.findItem(R.id.menu_item_search)
+        val searchView =
+            searchItem.actionView as SearchView
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(s: String): Boolean {
                 Log.d(TAG, "QueryTextSubmit: $s")
-                QueryPreferences.setStoredQuery(activity, s)
+                setStoredQuery(activity, s)
                 updateItems()
                 return true
             }
@@ -69,17 +74,30 @@ class PhotoGalleryFragment: Fragment() {
                 return false
             }
         })
-        searchView.setOnSearchClickListener(View.OnClickListener {
-            val query: String? = QueryPreferences.getStoredQuery(activity)
+        searchView.setOnSearchClickListener {
+            val query = getStoredQuery(activity)
             searchView.setQuery(query, false)
-        })
+        }
+        val toggleItem = menu.findItem(R.id.menu_item_toggle_polling)
+        if (PollService.isServiceAlarmOn(activity)) {
+            toggleItem.setTitle(R.string.stop_polling)
+        } else {
+            toggleItem.setTitle(R.string.start_polling)
+        }
     }
+
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_item_clear -> {
-                QueryPreferences.setStoredQuery(activity, null)
+                setStoredQuery(activity, null)
                 updateItems()
+                true
+            }
+            R.id.menu_item_toggle_polling -> {
+                val shouldStartAlarm = !PollService.isServiceAlarmOn(activity)
+                PollService.setServiceAlarm(activity!!, shouldStartAlarm)
+                activity!!.invalidateOptionsMenu()
                 true
             }
             else -> super.onOptionsItemSelected(item)
